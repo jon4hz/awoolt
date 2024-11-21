@@ -22,6 +22,20 @@ func TestVaultPath(t *testing.T) {
 			stringResult:   "engine/path/to/secret",
 			pathResult:     "path/to/secret",
 		},
+		{
+			vp:             vaultPath{"engine"},
+			metadataResult: "engine/metadata/",
+			engineResult:   "engine",
+			stringResult:   "engine",
+			pathResult:     "",
+		},
+		{
+			vp:             vaultPath{"engine", "path"},
+			metadataResult: "engine/metadata/path/",
+			engineResult:   "engine",
+			stringResult:   "engine/path",
+			pathResult:     "path",
+		},
 	} {
 		assert.Equal(t, tc.metadataResult, tc.vp.MetadataPath())
 		assert.Equal(t, tc.engineResult, tc.vp.Engine())
