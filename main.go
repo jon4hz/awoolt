@@ -62,7 +62,7 @@ func root(cmd *cobra.Command, _ []string) {
 	}
 	client.SetToken(string(token))
 
-	path := vaultPath{rootFlags.engine}
+	path := vaultPath{config.Engine}
 	if rootFlags.path != "" {
 		path.Add(strings.Split(rootFlags.path, "/")...)
 	}
