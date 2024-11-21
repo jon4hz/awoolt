@@ -12,15 +12,17 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/term"
 	"github.com/jon4hz/awoolt/config"
+	"github.com/jon4hz/awoolt/version"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "awoolt",
-	Short: "interactively browse vault/openbao in the terminal.",
-	Run:   root,
+	Use:     "awoolt",
+	Short:   "interactively browse vault/openbao in the terminal.",
+	Version: version.Version,
+	Run:     root,
 }
 
 var rootFlags struct {
@@ -39,6 +41,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&rootFlags.path, "path", "p", "", "secret path")
 
 	must(viper.BindPFlags(rootCmd.Flags()))
+	rootCmd.AddCommand(versionCmd)
 }
 
 func root(cmd *cobra.Command, _ []string) {
@@ -149,6 +152,17 @@ func printSecret(s *api.KVSecret) {
 	for k, v := range s.Data {
 		fmt.Printf("%s: %s\n", k, v)
 	}
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version info",
+	Run: func(_ *cobra.Command, _ []string) {
+		fmt.Printf("Version: %s\n", version.Version)
+		fmt.Printf("Commit: %s\n", version.Commit)
+		fmt.Printf("Date: %s\n", version.Date)
+		fmt.Printf("BuiltBy: %s\n", version.BuiltBy)
+	},
 }
 
 func main() {
