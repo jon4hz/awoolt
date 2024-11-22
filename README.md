@@ -5,6 +5,8 @@
 
 Interactively browse vault/openbao in the terminal.
 
+![demo](demo/demo.gif)
+
 ## 🚀 Installation
 
 ```bash
