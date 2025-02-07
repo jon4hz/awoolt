@@ -42,7 +42,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 }
 
-func root(cmd *cobra.Command, _ []string) {
+func root(_ *cobra.Command, _ []string) {
 	config, err := config.Load("")
 	if err != nil {
 		log.Fatal("Failed to load config", "err", err)
