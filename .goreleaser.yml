@@ -3,26 +3,45 @@ variables:
   main: "."
   binary_name: "awoolt"
   description: "interactively browse vault/openbao in the terminal."
-  github_url: "https://github.com/jon4hz/awoolt"
   maintainer: "jonah <me@jon4hz.io>"
   license: "MIT"
-  homepage: "https://jon4hz.io"
+  homepage: "https://github.com/jon4hz/awoolt"
   aur_package: |-
     # bin
-    install -Dm755 "./awoolt" "${pkgdir}/usr/bin/awoolt"
+    install -Dm755 "./{{ .ProjectName }}" "${pkgdir}/usr/bin/{{ .ProjectName }}"
     # license
-    install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/awoolt/LICENSE"
+    install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/{{ .ProjectName }}/LICENSE"
+    # completions
+    mkdir -p "${pkgdir}/usr/share/bash-completion/completions/"
+    mkdir -p "${pkgdir}/usr/share/zsh/site-functions/"
+    mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d/"
+    install -Dm644 "./completions/{{ .ProjectName }}.bash" "${pkgdir}/usr/share/bash-completion/completions/{{ .ProjectName }}"
+    install -Dm644 "./completions/{{ .ProjectName }}.zsh" "${pkgdir}/usr/share/zsh/site-functions/_{{ .ProjectName }}"
+    install -Dm644 "./completions/{{ .ProjectName }}.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/{{ .ProjectName }}.fish"
+    # man pages
+    install -Dm644 "./manpages/{{ .ProjectName }}.1.gz" "${pkgdir}/usr/share/man/man1/{{ .ProjectName }}.1.gz"
+    # readme
+    mkdir -pv "${pkgdir}/usr/share/doc/{{ .ProjectName }}/"
+    install -Dm644 README* "${pkgdir}/usr/share/doc/{{ .ProjectName }}/"
 
 before:
   hooks:
     - go mod tidy
+    - rm -rf completions
+    - mkdir completions
+    - rm -rf manpages
+    - mkdir manpages
+    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "bash" >./completions/{{ .ProjectName }}.bash'
+    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "zsh" >./completions/{{ .ProjectName }}.zsh'
+    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "fish" >./completions/{{ .ProjectName }}.fish'
+    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} man | gzip -c >./manpages/{{ .ProjectName }}.1.gz'
 
 builds:
   - id: default
     env:
       - CGO_ENABLED=0
     main: "{{ .Var.main }}"
-    binary: "{{ .Var.binary_name }}"
+    binary: "{{ with .Var.binary_name }}{{ . }}{{ else }}{{ .ProjectName }}{{ end }}"
     ldflags:
       - -s
       - -w
@@ -45,7 +64,8 @@ archives:
     files:
       - LICENSE*
       - README*
-      - CHANGELOG*
+      - manpages/*
+      - completions/*
 
 checksum:
   name_template: "checksums.txt"
@@ -61,6 +81,15 @@ nfpms:
       - apk
       - deb
       - rpm
+    contents:
+      - src: ./completions/{{ .ProjectName }}.bash
+        dst: /etc/bash_completion.d/{{ .ProjectName }}
+      - src: ./completions/{{ .ProjectName }}.fish
+        dst: /usr/share/fish/vendor_completions.d/{{ .ProjectName }}.fish
+      - src: ./completions/{{ .ProjectName }}.zsh
+        dst: /usr/share/zsh/site-functions/_{{ .ProjectName }}
+      - src: ./manpages/{{ .ProjectName }}.1.gz
+        dst: /usr/share/man/man1/{{ .ProjectName }}.1.gz
 
 aurs:
   - name: "{{ .Var.binary_name }}-bin"

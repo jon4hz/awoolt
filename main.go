@@ -20,7 +20,10 @@ var rootCmd = &cobra.Command{
 	Use:     "awoolt",
 	Short:   "interactively browse vault/openbao in the terminal.",
 	Version: version.Version,
-	Run:     root,
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
+	},
+	Run: root,
 }
 
 var rootFlags struct {
