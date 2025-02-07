@@ -54,9 +54,15 @@ interactively browse vault/openbao in the terminal.
 
 Usage:
   awoolt [flags]
+  awoolt [command]
+
+Available Commands:
+  help        Help about any command
+  version     Print the version info
 
 Flags:
   -e, --engine string   secret engine to use
   -h, --help            help for awoolt
   -p, --path string     secret path
+  -v, --version         version for awoolt
 ```
