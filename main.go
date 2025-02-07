@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/jon4hz/awoolt/config"
 	"github.com/jon4hz/awoolt/version"
+	mcobra "github.com/muesli/mango-cobra"
+	"github.com/muesli/roff"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -42,7 +44,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&rootFlags.path, "path", "p", "", "secret path")
 
 	must(viper.BindPFlags(rootCmd.Flags()))
-	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(versionCmd, manCmd)
 }
 
 func root(_ *cobra.Command, _ []string) {
@@ -86,6 +88,23 @@ var versionCmd = &cobra.Command{
 		fmt.Printf("Commit: %s\n", version.Commit)
 		fmt.Printf("Date: %s\n", version.Date)
 		fmt.Printf("BuiltBy: %s\n", version.BuiltBy)
+	},
+}
+
+var manCmd = &cobra.Command{
+	Use:                   "man",
+	Short:                 "generates the manpages",
+	SilenceUsage:          true,
+	DisableFlagsInUseLine: true,
+	Hidden:                true,
+	Args:                  cobra.NoArgs,
+	RunE: func(_ *cobra.Command, _ []string) error {
+		manPage, err := mcobra.NewManPage(1, rootCmd)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprint(os.Stdout, manPage.Build(roff.NewDocument()))
+		return err
 	},
 }
 
