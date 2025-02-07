@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/openbao/openbao/api/v2"
+	"github.com/samber/lo"
 )
 
 const MAXHEIGHT = 20
@@ -47,15 +48,17 @@ type model struct {
 	huhSelect *huh.Select[string]
 	options   []string
 	path      vaultPath
+	fields    []string
 	client    *api.Client
 	secrets   []vaultSecret
 }
 
-func newModel(client *api.Client, path vaultPath) model {
+func newModel(client *api.Client, path vaultPath, fields []string) model {
 	return model{
 		state:   stateLoading,
 		client:  client,
 		path:    path,
+		fields:  fields,
 		spinner: spinner.New().Title("Fetching secrets..."),
 		form:    huh.NewForm(),
 	}
@@ -216,12 +219,18 @@ func (m model) View() string {
 	case stateAbort:
 		return ""
 	case stateDone:
-		var s strings.Builder
-		s.WriteString(fmt.Sprintf("Path: %s\n", m.path.String()))
-		for _, secret := range m.secrets {
-			s.WriteString(fmt.Sprintf("%s: %v\n", secret.key, secret.value))
-		}
-		return s.String()
+		return m.printSecrets()
 	}
 	return "uwu"
+}
+
+func (m model) printSecrets() string {
+	var s strings.Builder
+	s.WriteString(fmt.Sprintf("Path: %s\n", m.path.String()))
+	for _, secret := range m.secrets {
+		if len(m.fields) == 0 || lo.Contains(m.fields, secret.key) {
+			s.WriteString(fmt.Sprintf("%s: %v\n", secret.key, secret.value))
+		}
+	}
+	return s.String()
 }
