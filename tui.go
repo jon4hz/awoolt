@@ -14,6 +14,8 @@ import (
 	"github.com/openbao/openbao/api/v2"
 )
 
+const MAX_HEIGHT = 20
+
 type (
 	vaultSecret struct {
 		key   string
@@ -146,13 +148,18 @@ func (m *model) updateHeight() tea.Cmd {
 	huhSelect := huh.NewSelect[string]().
 		Title(m.path.String()).
 		Options(huh.NewOptions(m.options...)...).
-		WithHeight(min(len(m.options)+2, m.height-2))
+		WithHeight(
+			min(MAX_HEIGHT, len(m.options)+2, m.height-3),
+		)
+
 	m.huhSelect = huhSelect.(*huh.Select[string])
+
 	m.form = huh.NewForm(
 		huh.NewGroup(
 			huhSelect,
 		),
 	).WithWidth(m.width)
+
 	return m.form.Init()
 }
 
