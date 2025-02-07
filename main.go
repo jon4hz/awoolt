@@ -31,6 +31,7 @@ var rootCmd = &cobra.Command{
 var rootFlags struct {
 	engine string
 	path   string
+	fields []string
 }
 
 func must(err error) {
@@ -42,6 +43,7 @@ func must(err error) {
 func init() {
 	rootCmd.Flags().StringVarP(&rootFlags.engine, "engine", "e", "", "secret engine to use")
 	rootCmd.Flags().StringVarP(&rootFlags.path, "path", "p", "", "secret path")
+	rootCmd.Flags().StringSliceVarP(&rootFlags.fields, "fields", "f", nil, "fields to display")
 
 	must(viper.BindPFlags(rootCmd.Flags()))
 	rootCmd.AddCommand(versionCmd, manCmd)
@@ -74,7 +76,7 @@ func root(_ *cobra.Command, _ []string) {
 		path.Add(strings.Split(p, "/")...)
 	}
 
-	m := newModel(client, path)
+	m := newModel(client, path, rootFlags.fields)
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		log.Fatal("Error", "err", err)
 	}
