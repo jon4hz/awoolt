@@ -35,3 +35,10 @@ func (v *vaultPath) Add(path ...string) {
 		*v = append(*v, strings.TrimSuffix(p, "/"))
 	}
 }
+
+func (v *vaultPath) Back() *vaultPath {
+	if len(*v) > 1 {
+		*v = (*v)[:len(*v)-1]
+	}
+	return v
+}
