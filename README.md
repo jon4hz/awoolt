@@ -17,7 +17,7 @@ $ go install github.com/jon4hz/awoolt@latest
 $ yay -S awoolt-bin
 
 # local pkg manager
-$ export VERSION=v0.1.0
+$ export VERSION=v0.2.1
 
 ## debian / ubuntu
 $ dpkg -i awoolt-$VERSION-linux-amd64.deb
