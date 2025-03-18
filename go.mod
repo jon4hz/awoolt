@@ -4,7 +4,7 @@ go 1.23.3
 
 require (
 	github.com/adrg/xdg v0.5.3
-	github.com/charmbracelet/bubbletea v1.3.3
+	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/huh v0.6.0
 	github.com/charmbracelet/huh/spinner v0.0.0-20250204235945-8ba2257ea44a
 	github.com/charmbracelet/lipgloss v1.1.0
