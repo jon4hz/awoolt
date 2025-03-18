@@ -25,13 +25,19 @@ var rootCmd = &cobra.Command{
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		if rootFlags.clipboard != "" && len(rootFlags.fields) != 1 {
+			log.Fatal("Make sure to select only one field when using the clipboard flag")
+		}
+	},
 	Run: root,
 }
 
 var rootFlags struct {
-	engine string
-	path   string
-	fields []string
+	engine    string
+	path      string
+	fields    []string
+	clipboard string
 }
 
 func must(err error) {
@@ -44,6 +50,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&rootFlags.engine, "engine", "e", "", "secret engine to use")
 	rootCmd.Flags().StringVarP(&rootFlags.path, "path", "p", "", "secret path")
 	rootCmd.Flags().StringSliceVarP(&rootFlags.fields, "fields", "f", nil, "fields to display")
+	rootCmd.Flags().StringVarP(&rootFlags.clipboard, "clipboard", "c", "", "select which field to copy to clipboard")
 
 	must(viper.BindPFlags(rootCmd.Flags()))
 	rootCmd.AddCommand(versionCmd, manCmd)
