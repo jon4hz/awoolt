@@ -14,7 +14,7 @@ import (
 	"github.com/samber/lo"
 )
 
-const MAXHEIGHT = 20
+const maxHeight = 20
 
 type (
 	vaultSecret struct {
@@ -145,7 +145,7 @@ func (m *model) updateHeight() tea.Cmd {
 		Title(m.path.String()).
 		Options(huh.NewOptions(m.options...)...).
 		WithHeight(
-			min(MAXHEIGHT, len(m.options)+2, m.height-3),
+			min(maxHeight, len(m.options)+2, m.height-3),
 		)
 
 	m.huhSelect = huhSelect.(*huh.Select[string])
