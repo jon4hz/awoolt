@@ -1,3 +1,4 @@
+// Package main provides a command-line interface to interactively browse Vault/OpenBao secrets in the terminal.
 package main
 
 import (
@@ -26,6 +27,15 @@ var rootCmd = &cobra.Command{
 		HiddenDefaultCmd: true,
 	},
 	Run: root,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		root(cmd, []string{toComplete})
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 }
 
 var rootFlags struct {
@@ -44,6 +54,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&rootFlags.engine, "engine", "e", "", "secret engine to use")
 	rootCmd.Flags().StringVarP(&rootFlags.path, "path", "p", "", "secret path")
 	rootCmd.Flags().StringSliceVarP(&rootFlags.fields, "fields", "f", nil, "fields to display")
+
+	rootCmd.Flags().MarkDeprecated("path", "use the path as argument instead") //nolint:errcheck,gosec
 
 	must(viper.BindPFlags(rootCmd.Flags()))
 	rootCmd.AddCommand(versionCmd, manCmd)
@@ -103,10 +115,10 @@ var manCmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, _ []string) error {
 		manPage, err := mcobra.NewManPage(1, rootCmd)
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck
 		}
 		_, err = fmt.Fprint(os.Stdout, manPage.Build(roff.NewDocument()))
-		return err
+		return err //nolint:wrapcheck
 	},
 }
 
