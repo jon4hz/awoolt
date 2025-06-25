@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -97,7 +96,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = stateAbort
 			return m, func() tea.Msg { return doneMsg{} }
 		case "esc":
-			if m.isFiltering() {
+			if m.huhSelect.GetFiltering() {
 				break
 			}
 			m.path.Back()
@@ -139,12 +138,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-// hacky since huh doesn't expose a way to check if filtering is enabled yet
-func (m model) isFiltering() bool {
-	val := reflect.ValueOf(m.huhSelect).Elem().FieldByName("filtering")
-	return val.Bool()
 }
 
 func (m *model) updateHeight() tea.Cmd {
