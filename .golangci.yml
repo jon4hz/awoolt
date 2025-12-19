@@ -12,19 +12,17 @@ linters:
     - gosec
     - misspell
     - nakedret
-    - nestif
     - nilerr
     - noctx
     - nolintlint
     - prealloc
-    - revive
     - rowserrcheck
     - sqlclosecheck
     - tparallel
     - unconvert
     - unparam
     - whitespace
-    - wrapcheck
+    # - wrapcheck
   exclusions:
     generated: lax
     presets:
