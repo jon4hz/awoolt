@@ -1,3 +1,4 @@
+// Package config provides functionality to load configuration settings for awoolt.
 package config
 
 import (
@@ -9,10 +10,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config holds the configuration options for awoolt.
 type Config struct {
 	Engine string `mapstructure:"engine"`
 }
 
+// Load loads the configuration from the specified path or from default locations.
 func Load(path string) (cfg *Config, err error) {
 	if path != "" {
 		return load(path)
@@ -35,7 +38,7 @@ func Load(path string) (cfg *Config, err error) {
 		}
 	}
 	if cfg == nil {
-		return cfg, viper.Unmarshal(&cfg)
+		return cfg, viper.Unmarshal(&cfg) //nolint:wrapcheck
 	}
 	return
 }
