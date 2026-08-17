@@ -7,10 +7,10 @@ import (
 	"path"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/fang/v2"
+	"charm.land/log/v2"
 	"github.com/adrg/xdg"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/fang"
-	"github.com/charmbracelet/log"
 	"github.com/jon4hz/awoolt/config"
 	"github.com/jon4hz/awoolt/version"
 	mcobra "github.com/muesli/mango-cobra"
@@ -79,8 +79,12 @@ func root(_ *cobra.Command, _ []string) {
 	}
 
 	m := newModel(client, path, rootFlags.fields)
-	if _, err := tea.NewProgram(m).Run(); err != nil {
+	finalModel, err := tea.NewProgram(m).Run()
+	if err != nil {
 		log.Fatal("Error", "err", err)
+	}
+	if m, ok := finalModel.(model); ok {
+		fmt.Print(m.output())
 	}
 }
 
