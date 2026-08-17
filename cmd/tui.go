@@ -79,7 +79,7 @@ func newModel(client *api.Client, path vaultPath, fields []string) model {
 	const isDark = true
 
 	l := list.New(nil, newItemDelegate(isDark, false), 0, 0)
-	l.Styles = list.DefaultStyles(isDark)
+	l.Styles = newListStyles(isDark)
 	l.DisableQuitKeybindings()
 	l.SetShowStatusBar(false)
 	l.InfiniteScrolling = true
@@ -95,11 +95,35 @@ func newModel(client *api.Client, path vaultPath, fields []string) model {
 	}
 }
 
+func newListStyles(isDark bool) list.Styles {
+	lightDark := lipgloss.LightDark(isDark)
+	s := list.DefaultStyles(isDark)
+	s.TitleBar = s.TitleBar.Padding(0, 0, 1, 0)
+	s.Title = lipgloss.NewStyle().
+		Foreground(lightDark(lipgloss.Color("#5A56E0"), lipgloss.Color("#7571F9"))).
+		Bold(true)
+	return s
+}
+
 func newItemDelegate(isDark, showDesc bool) list.DefaultDelegate {
+	lightDark := lipgloss.LightDark(isDark)
+
 	d := list.NewDefaultDelegate()
 	d.ShowDescription = showDesc
 	d.SetSpacing(0)
-	d.Styles = list.NewDefaultItemStyles(isDark)
+
+	s := list.NewDefaultItemStyles(isDark)
+	s.NormalTitle = s.NormalTitle.
+		Foreground(lightDark(lipgloss.Color("235"), lipgloss.Color("252")))
+	s.SelectedTitle = lipgloss.NewStyle().
+		Border(lipgloss.Border{Left: ">"}, false, false, false, true).
+		BorderForeground(lipgloss.Color("#F780E2")).
+		Foreground(lightDark(lipgloss.Color("#02BA84"), lipgloss.Color("#02BF87"))).
+		Padding(0, 0, 0, 1)
+	s.SelectedDesc = s.SelectedTitle.
+		Border(lipgloss.Border{Left: " "}, false, false, false, true).
+		Foreground(lightDark(lipgloss.Color("#02CF92"), lipgloss.Color("#02A877")))
+	d.Styles = s
 	return d
 }
 
@@ -120,7 +144,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.BackgroundColorMsg:
 		m.isDark = msg.IsDark()
-		m.list.Styles = list.DefaultStyles(m.isDark)
+		m.list.Styles = newListStyles(m.isDark)
 		m.list.SetDelegate(newItemDelegate(m.isDark, m.showDesc))
 		return m, nil
 	case keysMsg:
