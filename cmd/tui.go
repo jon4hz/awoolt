@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
@@ -31,6 +32,13 @@ type (
 	doneMsg    struct{}
 	secretsMsg []vaultSecret
 	keysMsg    []string
+
+	// metadataMsg reports the custom metadata of the secrets listed at path,
+	// keyed by secret name and already formatted for display.
+	metadataMsg struct {
+		path string
+		meta map[string]string
+	}
 )
 
 type state int
@@ -43,32 +51,38 @@ const (
 )
 
 // pathItem is a single entry of a vault path listing.
-type pathItem string
+type pathItem struct {
+	name string
+	meta string
+}
 
-func (p pathItem) FilterValue() string { return string(p) }
-func (p pathItem) Title() string       { return string(p) }
-func (p pathItem) Description() string { return "" }
+func (p pathItem) FilterValue() string { return p.name }
+func (p pathItem) Title() string       { return p.name }
+func (p pathItem) Description() string { return p.meta }
 
 type model struct {
-	width   int
-	height  int
-	state   state
-	err     error
-	spinner spinner.Model
-	list    list.Model
-	path    vaultPath
-	fields  []string
-	client  *api.Client
-	secrets []vaultSecret
+	width    int
+	height   int
+	state    state
+	err      error
+	spinner  spinner.Model
+	list     list.Model
+	path     vaultPath
+	fields   []string
+	client   *api.Client
+	secrets  []vaultSecret
+	isDark   bool
+	showDesc bool
 }
 
 func newModel(client *api.Client, path vaultPath, fields []string) model {
 	const isDark = true
 
-	l := list.New(nil, newItemDelegate(isDark), 0, 0)
+	l := list.New(nil, newItemDelegate(isDark, false), 0, 0)
 	l.Styles = list.DefaultStyles(isDark)
 	l.DisableQuitKeybindings()
 	l.SetShowStatusBar(false)
+	l.InfiniteScrolling = true
 
 	return model{
 		state:   stateLoading,
@@ -77,12 +91,13 @@ func newModel(client *api.Client, path vaultPath, fields []string) model {
 		fields:  fields,
 		spinner: spinner.New(spinner.WithSpinner(spinner.Dot)),
 		list:    l,
+		isDark:  isDark,
 	}
 }
 
-func newItemDelegate(isDark bool) list.DefaultDelegate {
+func newItemDelegate(isDark, showDesc bool) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
-	d.ShowDescription = false
+	d.ShowDescription = showDesc
 	d.SetSpacing(0)
 	d.Styles = list.NewDefaultItemStyles(isDark)
 	return d
@@ -104,22 +119,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sizeList()
 		return m, nil
 	case tea.BackgroundColorMsg:
-		isDark := msg.IsDark()
-		m.list.Styles = list.DefaultStyles(isDark)
-		m.list.SetDelegate(newItemDelegate(isDark))
+		m.isDark = msg.IsDark()
+		m.list.Styles = list.DefaultStyles(m.isDark)
+		m.list.SetDelegate(newItemDelegate(m.isDark, m.showDesc))
 		return m, nil
 	case keysMsg:
 		m.state = stateList
 		items := make([]list.Item, len(msg))
 		for i, key := range msg {
-			items[i] = pathItem(key)
+			items[i] = pathItem{name: key}
 		}
+		m.setShowDescription(false)
 		cmd := m.list.SetItems(items)
 		m.list.Title = m.path.String()
 		m.list.ResetFilter()
 		m.list.ResetSelected()
 		m.sizeList()
-		return m, cmd
+		return m, tea.Batch(cmd, fetchMetadataCmd(m.client, m.path, leafKeys(msg)))
+	case metadataMsg:
+		if msg.path != m.path.String() {
+			// Stale result: the user already navigated to another path.
+			return m, nil
+		}
+		var cmds []tea.Cmd
+		for i, li := range m.list.Items() {
+			if item, ok := li.(pathItem); ok {
+				if meta, ok := msg.meta[item.name]; ok {
+					item.meta = meta
+					cmds = append(cmds, m.list.SetItem(i, item))
+				}
+			}
+		}
+		if len(msg.meta) > 0 {
+			m.setShowDescription(true)
+		}
+		return m, tea.Batch(cmds...)
 	case secretsMsg:
 		m.secrets = msg
 		return m, func() tea.Msg { return doneMsg{} }
@@ -143,7 +177,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.state == stateList && !m.list.SettingFilter() {
 				if item, ok := m.list.SelectedItem().(pathItem); ok {
-					m.path.Add(string(item))
+					m.path.Add(item.name)
 					return m, m.loadPath()
 				}
 			}
@@ -163,11 +197,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// setShowDescription toggles the metadata descriptions of the list items and
+// resizes the list to account for the changed item height.
+func (m *model) setShowDescription(show bool) {
+	if m.showDesc == show {
+		return
+	}
+	m.showDesc = show
+	m.list.SetDelegate(newItemDelegate(m.isDark, show))
+	m.sizeList()
+}
+
 func (m *model) sizeList() {
 	if m.width <= 0 || m.height <= 0 {
 		return
 	}
-	h := min(MAXHEIGHT, max(len(m.list.Items()), 1)+listChromeHeight, m.height-2)
+	itemHeight := 1
+	if m.showDesc {
+		itemHeight = 2
+	}
+	h := min(MAXHEIGHT, max(len(m.list.Items())*itemHeight, 1)+listChromeHeight, m.height-2)
 	m.list.SetSize(m.width, h)
 }
 
@@ -197,6 +246,82 @@ func listPathsCmd(client *api.Client, path vaultPath) tea.Cmd {
 			availableKeys[i] = key.(string)
 		}
 		return keysMsg(availableKeys)
+	}
+}
+
+// leafKeys returns the keys that are secrets rather than sub-paths.
+func leafKeys(keys []string) []string {
+	return lo.Filter(keys, func(key string, _ int) bool {
+		return !strings.HasSuffix(key, "/")
+	})
+}
+
+// ignoredMetadataFields are custom metadata fields that are not worth showing.
+var ignoredMetadataFields = map[string]struct{}{
+	"vault_orig_created_time":      {},
+	"vault_orig_last_updated_time": {},
+}
+
+// formatCustomMetadata renders custom metadata as "key=value ..." with the
+// keys in sorted order, or an empty string if there is none.
+func formatCustomMetadata(meta map[string]any) string {
+	keys := make([]string, 0, len(meta))
+	for k := range meta {
+		if _, ignored := ignoredMetadataFields[k]; !ignored {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	sort.Strings(keys)
+	pairs := make([]string, len(keys))
+	for i, k := range keys {
+		pairs[i] = fmt.Sprintf("%s=%v", k, meta[k])
+	}
+	return strings.Join(pairs, " ")
+}
+
+// fetchMetadataCmd loads the metadata of the given secrets and reports which of
+// them have custom metadata attached. Individual failures are ignored so the
+// listing stays usable even without metadata access.
+func fetchMetadataCmd(client *api.Client, path vaultPath, keys []string) tea.Cmd {
+	if len(keys) == 0 {
+		return nil
+	}
+	engine := path.Engine()
+	base := path.Path()
+	pathStr := path.String()
+	return func() tea.Msg {
+		var (
+			mu   sync.Mutex
+			wg   sync.WaitGroup
+			sem  = make(chan struct{}, 8)
+			meta = make(map[string]string)
+		)
+		for _, key := range keys {
+			wg.Add(1)
+			go func(key string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				secretPath := key
+				if base != "" {
+					secretPath = base + "/" + key
+				}
+				md, err := client.KVv2(engine).GetMetadata(context.Background(), secretPath)
+				if err != nil || md == nil {
+					return
+				}
+				if formatted := formatCustomMetadata(md.CustomMetadata); formatted != "" {
+					mu.Lock()
+					meta[key] = formatted
+					mu.Unlock()
+				}
+			}(key)
+		}
+		wg.Wait()
+		return metadataMsg{path: pathStr, meta: meta}
 	}
 }
 
