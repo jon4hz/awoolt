@@ -14,7 +14,7 @@ func (v vaultPath) Engine() string {
 func (v vaultPath) MetadataPath() string {
 	var s strings.Builder
 	for i, p := range v {
-		s.WriteString(fmt.Sprintf("%s/", p))
+		fmt.Fprintf(&s, "%s/", p)
 		if i == 0 {
 			s.WriteString("metadata/")
 		}
