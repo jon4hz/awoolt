@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/fang/v2 v2.0.1
 	charm.land/huh/v2 v2.0.3
-	charm.land/lipgloss/v2 v2.0.5
+	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.0
 	github.com/adrg/xdg v0.5.3
 	github.com/muesli/mango-cobra v1.3.0
@@ -24,7 +24,7 @@ require (
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/exp/charmtone v0.0.0-20260816001655-68d539dca504 // indirect
 	github.com/charmbracelet/x/exp/ordered v0.1.0 // indirect
