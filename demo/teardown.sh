@@ -3,16 +3,16 @@
 set -e
 
 # read pid from file
-VAULT_PID=$(cat ./demo/vault.pid)
+BAO_PID=$(cat ./demo/bao.pid)
 
-# restore vault token
+# restore bao token
 if [ -f ~/.vault-token.bak ]; then
   mv ~/.vault-token.bak ~/.vault-token
 fi
 
-# stop vault server
-kill "$VAULT_PID"
+# stop bao server
+kill "$BAO_PID"
 
 # remove files
-rm ./demo/vault.pid
+rm ./demo/bao.pid
 rm awoolt

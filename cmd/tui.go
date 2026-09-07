@@ -28,10 +28,17 @@ type (
 		value any
 	}
 
-	errMsg     error
-	doneMsg    struct{}
-	secretsMsg []vaultSecret
-	keysMsg    []string
+	errMsg  error
+	doneMsg struct{}
+	keysMsg []string
+
+	// secretsMsg reports the entries of a fetched secret together with its
+	// metadata, already formatted for display.
+	secretsMsg struct {
+		secrets    []vaultSecret
+		metaLines  []string
+		customMeta map[string]any
+	}
 
 	// metadataMsg reports the custom metadata of the secrets listed at path,
 	// keyed by secret name and already formatted for display.
@@ -46,6 +53,7 @@ type state int
 const (
 	stateLoading state = iota
 	stateList
+	stateSecret
 	stateAbort
 	stateDone
 )
@@ -61,18 +69,22 @@ func (p pathItem) Title() string       { return p.name }
 func (p pathItem) Description() string { return p.meta }
 
 type model struct {
-	width    int
-	height   int
-	state    state
-	err      error
-	spinner  spinner.Model
-	list     list.Model
-	path     vaultPath
-	fields   []string
-	client   *api.Client
-	secrets  []vaultSecret
-	isDark   bool
-	showDesc bool
+	width      int
+	height     int
+	state      state
+	err        error
+	spinner    spinner.Model
+	list       list.Model
+	secretList list.Model
+	metaLines  []string
+	customMeta map[string]any
+	editor     secretEditor
+	path       vaultPath
+	fields     []string
+	client     *api.Client
+	secrets    []vaultSecret
+	isDark     bool
+	showDesc   bool
 }
 
 func newModel(client *api.Client, path vaultPath, fields []string) model {
@@ -85,13 +97,14 @@ func newModel(client *api.Client, path vaultPath, fields []string) model {
 	l.InfiniteScrolling = true
 
 	return model{
-		state:   stateLoading,
-		client:  client,
-		path:    path,
-		fields:  fields,
-		spinner: spinner.New(spinner.WithSpinner(spinner.Dot)),
-		list:    l,
-		isDark:  isDark,
+		state:      stateLoading,
+		client:     client,
+		path:       path,
+		fields:     fields,
+		spinner:    spinner.New(spinner.WithSpinner(spinner.Dot)),
+		list:       l,
+		secretList: newSecretList(isDark),
+		isDark:     isDark,
 	}
 }
 
@@ -141,11 +154,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.sizeList()
+		m.sizeSecretList()
 		return m, nil
 	case tea.BackgroundColorMsg:
 		m.isDark = msg.IsDark()
 		m.list.Styles = newListStyles(m.isDark)
 		m.list.SetDelegate(newItemDelegate(m.isDark, m.showDesc))
+		m.secretList.Styles = newListStyles(m.isDark)
+		m.secretList.SetDelegate(newItemDelegate(m.isDark, false))
 		return m, nil
 	case keysMsg:
 		m.state = stateList
@@ -179,8 +195,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 	case secretsMsg:
-		m.secrets = msg
-		return m, func() tea.Msg { return doneMsg{} }
+		cmd := m.applySecrets(msg)
+		m.secretList.ResetSelected()
+		return m, cmd
+	case editDoneMsg:
+		return m, m.applyEditDone(msg)
+	case statusClearMsg:
+		return m, m.clearStatus(msg.index)
+	case totpMsg:
+		return m, m.applyTOTP(msg)
 	case doneMsg:
 		if m.state != stateAbort {
 			m.state = stateDone
@@ -193,17 +216,49 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			m.state = stateAbort
 			return m, func() tea.Msg { return doneMsg{} }
-		case "esc":
+		}
+		if m.state == stateSecret && m.editor.mode != editNone {
+			return m, m.updateEditor(msg)
+		}
+		switch msg.String() {
+		case keyEsc:
 			if m.state == stateList && !m.list.SettingFilter() {
 				m.path.Back()
 				return m, m.loadPath()
 			}
-		case "enter":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				m.path.Back()
+				return m, m.loadPath()
+			}
+		case keyEnter:
 			if m.state == stateList && !m.list.SettingFilter() {
 				if item, ok := m.list.SelectedItem().(pathItem); ok {
 					m.path.Add(item.name)
 					return m, m.loadPath()
 				}
+			}
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, m.toggleReveal()
+			}
+		case "s":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, m.toggleReveal()
+			}
+		case "c":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, m.copySelected()
+			}
+		case "t":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, m.totpSelected()
+			}
+		case "p":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, func() tea.Msg { return doneMsg{} }
+			}
+		case "e":
+			if m.state == stateSecret && !m.secretList.SettingFilter() {
+				return m, m.startEdit()
 			}
 		}
 	}
@@ -214,11 +269,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(msg)
 	case stateList:
 		m.list, cmd = m.list.Update(msg)
+	case stateSecret:
+		if m.editor.mode == editInput {
+			m.editor.input, cmd = m.editor.input.Update(msg)
+		} else {
+			m.secretList, cmd = m.secretList.Update(msg)
+		}
 	case stateDone, stateAbort:
 		return m, tea.Quit
 	}
 
 	return m, cmd
+}
+
+// applySecrets shows the given secret in the detail view. The selection is
+// left untouched so callers can decide whether to keep or reset it.
+func (m *model) applySecrets(msg secretsMsg) tea.Cmd {
+	m.state = stateSecret
+	m.secrets = msg.secrets
+	m.metaLines = msg.metaLines
+	m.customMeta = msg.customMeta
+	items := make([]list.Item, len(msg.secrets))
+	for i, secret := range msg.secrets {
+		items[i] = secretEntry{vaultSecret: secret}
+	}
+	cmd := m.secretList.SetItems(items)
+	m.secretList.ResetFilter()
+	m.sizeSecretList()
+	return cmd
 }
 
 // setShowDescription toggles the metadata descriptions of the list items and
@@ -364,7 +442,11 @@ func listSecret(client *api.Client, path vaultPath) tea.Msg {
 	sort.Slice(vs, func(i, j int) bool {
 		return vs[i].key < vs[j].key
 	})
-	return secretsMsg(vs)
+	return secretsMsg{
+		secrets:    vs,
+		metaLines:  formatSecretMetaLines(secret.VersionMetadata, secret.CustomMetadata),
+		customMeta: secret.CustomMetadata,
+	}
 }
 
 var errStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true)
@@ -378,6 +460,8 @@ func (m model) View() tea.View {
 		return tea.NewView(m.spinner.View() + "Fetching secrets...")
 	case stateList:
 		return tea.NewView(m.list.View())
+	case stateSecret:
+		return tea.NewView(m.secretView())
 	case stateAbort, stateDone:
 		// The result is printed after the program exits, since frames larger
 		// than the terminal would be cut off by the renderer.

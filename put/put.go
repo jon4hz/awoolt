@@ -14,6 +14,8 @@ import (
 type KV interface {
 	Put(ctx context.Context, path string, data map[string]any, opts ...api.KVOption) (*api.KVSecret, error)
 	PutMetadata(ctx context.Context, path string, input api.KVMetadataPutInput) error
+	Patch(ctx context.Context, path string, data map[string]any, opts ...api.KVOption) (*api.KVSecret, error)
+	PatchMetadata(ctx context.Context, path string, input api.KVMetadataPatchInput) error
 }
 
 // Secret is a single KV v2 secret to write.
@@ -75,4 +77,27 @@ func write(ctx context.Context, kv KV, secret Secret) error {
 		metadata[field] = secret.Data[field]
 	}
 	return kv.PutMetadata(ctx, secret.Path, api.KVMetadataPutInput{CustomMetadata: metadata})
+}
+
+// PatchField updates a single field of an existing secret, leaving the other
+// fields untouched. If updateMetadata is set, the same key is also merged into
+// the secret's custom metadata, keeping a mirrored field in sync.
+func PatchField(ctx context.Context, kv KV, path, key, value string, updateMetadata bool) error {
+	if path == "" {
+		return errors.New("path must not be empty")
+	}
+	if key == "" {
+		return errors.New("key must not be empty")
+	}
+	if _, err := kv.Patch(ctx, path, map[string]any{key: value}); err != nil {
+		return fmt.Errorf("failed to patch secret %q: %w", path, err)
+	}
+	if !updateMetadata {
+		return nil
+	}
+	input := api.KVMetadataPatchInput{CustomMetadata: map[string]any{key: value}}
+	if err := kv.PatchMetadata(ctx, path, input); err != nil {
+		return fmt.Errorf("failed to patch metadata of secret %q: %w", path, err)
+	}
+	return nil
 }
