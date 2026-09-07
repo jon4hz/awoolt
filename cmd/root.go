@@ -22,7 +22,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "awoolt",
-	Short:   "interactively browse vault/openbao in the terminal.",
+	Short:   "A simple TUI for your openbao KV engines.",
 	Version: version.Version,
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
