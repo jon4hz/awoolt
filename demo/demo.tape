@@ -6,7 +6,7 @@ Set Height 350
 Hide
 Type "./demo/setup.sh"
 Enter
-Type "export VAULT_ADDR=http://localhost:8200"
+Type "export BAO_ADDR=http://localhost:8200"
 Enter
 Type "export CLICOLOR_FORCE=1"
 Enter
