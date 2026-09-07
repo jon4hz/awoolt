@@ -3,7 +3,7 @@
 [![lint](https://github.com/jon4hz/awoolt/actions/workflows/lint.yml/badge.svg)](https://github.com/jon4hz/awoolt/actions/workflows/lint.yml)
 [![goreleaser](https://github.com/jon4hz/awoolt/actions/workflows/release.yml/badge.svg)](https://github.com/jon4hz/awoolt/actions/workflows/release.yml)
 
-Interactively browse vault/openbao in the terminal.
+A simple TUI for your openbao KV engines.
 
 ![demo](demo/demo.gif)
 
@@ -17,7 +17,7 @@ $ go install github.com/jon4hz/awoolt@latest
 $ yay -S awoolt-bin
 
 # local pkg manager
-$ export VERSION=v0.2.1
+$ export VERSION=v0.0.0 # -> replace with actual version
 
 ## debian / ubuntu
 $ dpkg -i awoolt-$VERSION-linux-amd64.deb
@@ -41,28 +41,19 @@ All releases can be found [here](https://github.com/jon4hz/awoolt/releases)
 ```yaml
 # ~/.config/awoolt/awoolt.yml
 ---
-engine: my-vault-kv
+engine: my-bao-kv
 ```
 
 ## 🔑 Authentication
-Make sure you have a valid vault token on your system. Try `vault login`.
+Make sure you have a valid openbao token on your system. Try `bao login`.
 
 ## ✨ Usage
 ```
 $ awoolt --help
-interactively browse vault/openbao in the terminal.
-
-Usage:
-  awoolt [flags]
-  awoolt [command]
-
-Available Commands:
-  help        Help about any command
-  version     Print the version info
-
-Flags:
-  -e, --engine string   secret engine to use
-  -h, --help            help for awoolt
-  -p, --path string     secret path
-  -v, --version         version for awoolt
 ```
+
+### 📥 Creating secrets
+`awoolt put` creates secrets using an interactive form. Fields passed with `-m` are
+also stored as custom metadata.
+
+![put demo](demo/put.gif)

@@ -2,7 +2,7 @@
 variables:
   main: "."
   binary_name: "awoolt"
-  description: "interactively browse vault/openbao in the terminal."
+  description: "A simple TUI for your openbao KV engines."
   maintainer: "jonah <me@jon4hz.io>"
   license: "MIT"
   homepage: "https://github.com/jon4hz/awoolt"
