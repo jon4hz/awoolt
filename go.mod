@@ -8,7 +8,7 @@ require (
 	charm.land/fang/v2 v2.0.1
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
-	charm.land/log/v2 v2.0.0
+	charm.land/log/v2 v2.0.1
 	github.com/adrg/xdg v0.5.3
 	github.com/openbao/openbao/api/v2 v2.6.0
 	github.com/samber/lo v1.53.0
