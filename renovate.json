@@ -8,8 +8,10 @@
     "mergeConfidence:all-badges"
   ],
   "timezone": "Europe/Zurich",
-  "dependencyDashboard": true,
-  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "dependencyDashboard": {
+    "enabled": true,
+    "osvVulnerabilitySummary": "all"
+  },
   "osvVulnerabilityAlerts": true,
   "automerge": false,
   "minimumReleaseAge": "7 days",
